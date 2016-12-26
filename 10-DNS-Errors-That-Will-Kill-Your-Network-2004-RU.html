@@ -1,0 +1,209 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>10 ошибок настройки DNS, которые убьют вашу сеть 2004</title>
+</head>
+
+<body>
+<p>In-Depth
+<h1>
+10 ошибок настройки DNS, которые убьют вашу сеть 2004
+</h1>
+DNS - это фундамент, на котором построено здание Active Directory. Если DNS не работает, то ваша Windows-сеть тоже не будет работать. Вот описание десяти наиболее распространённых ошибок в настройке DNS и того, как их избежать.
+  
+  Автор: Бил Бозвел
+  05/01/2004
+  
+  Гораздо больше 70 процентов всех звонков в службу поддержки, которые поступают  службе поддержки Microsoft,  начинающиеся как вопросы об Active Directory или Exchange, оказываются запросами о DNS. Yet, as you'll see in this article, most of these issues don't require extensive diagnostic work or sophisticated tools to isolate and resolve. I liken it to the days when automobiles had carburetors; a mechanic could fix most engine performance problems by fiddling with the choke—spritz a little WD-40 into the throttle body, charge $50 and retire in the suburbs after a few years. Nowadays, the same is true for DNS. Check the TCP/IP settings, run a few utilities to verify the zone records, charge $350 (correcting for inflation) and retire to Arizona.
+  
+   Тем не менее, как вы увидите в этой статье, большинство из этих вопросов не требует обширных диагностических работ или сложные инструменты, чтобы изолировать и решить. Я сравниваю его в те дни, когда автомобили имели карбюраторы; механик может исправить большинство проблем с производительностью двигателя при помощи махинаций с дросселем-брызгать немного WD-40 в корпусе дроссельной заслонки, плату в размере $ 50 и уйти в отставку в пригороде через несколько лет. В наши дни, то же самое верно для DNS. Проверьте настройки TCP / IP, выполните несколько утилит для проверки записи зоны, плату в размере $ 350 (с поправкой на инфляцию) и удалиться в Аризоне.
+  
+ Все же, как Вы будете видеть в этой статье, большинство этих проблем не требует, чтобы обширная диагностическая работа или современные инструменты изолировали и решили. Я уподобляю его дням, когда у автомобилей были карбюраторы; механик мог решить большинство проблем работы двигателя, играя с дроссельной катушкой — сприты немного WD-40 в тело дросселя, взимать 50$ и удалиться в пригороде после нескольких лет. В наше время то же самое верно для DNS. Проверьте параметры настройки TCP/IP, управляйте несколькими утилитами, чтобы проверить зональные отчеты, взимать 350$ (исправляющий для инфляции) и удалиться в Аризону. 
+  
+  You'll learn to identify the most common domain name system issues that cause problems for AD and Exchange and how to avoid them in the first place or isolate and resolve them if they occur in production. If you're an experienced Windows system engineer, they may seem a little trivial. But even the most highly trained and savvy administrator can get in a hurry and make a mistake. Also, the more experience you have, the more likely you are to make your DNS infrastructure complex, inviting the attention of Mr. Murphy and other elements of chaotic cosmic calamity.
+<ol>
+<li>
+  <h2>TCP/IP Configuration Points to Public DNS Servers</h2>
+  This is by far the most common DNS error. Each network interface has a set of TCP/IP settings that lists the DNS servers used by that interface.
+  
+  If the TCP/IP settings for a member computer specify the IP address of a public DNS server—perhaps at an ISP or DNS vendor or the company's public-facing name server—the TCP/IP resolver won't find Service Locator (SRV) records that advertise domain controller services, LDAP, Kerberos and Global Catalog. Without these records, a member computer can't authenticate and get the information it needs to operate in the domain. It then acts like a teenager who can't get the car keys, growing sullen and exhibiting a variety of bad behaviors.
+  
+  Don't think this error can't happen to you. Let's say you're a VAR with a customer you plan to upgrade from NT 4.0 to Windows 2000 Server or Windows Server 2003. The desktops use DHCP with a scope option that includes the IP addresses of two DNS servers managed by the customer's broadband provider. The servers use static mappings to the same external DNS servers.
+  
+  During the PDC upgrade, you install DNS because DCPromo tells you to. You let DCPromo configure a zone file that matches the DNS name you selected for AD. You're so pleased with the ease of the upgrade that you forget to reconfigure the TCP/IP settings of the newly upgraded DC to point at itself for DNS. You also forget to reconfigure the DHCP scope options so the clients still point at the ISP's DNS server instead of the new DC.
+  
+  The result? The DC doesn't register SRV records in the new DNS zone and the clients wouldn't be able to find them, even if it did. The member computers don't know that the domain has been upgraded to AD unless they just happen to authenticate at the PDC. The other computers get no group policies, so you can forget about any carefully-orchestrated centralized management scheme. Your customer gets angry. You don't get a check for your services. Your children starve and your dog runs away. See the importance of DNS?
+  
+  Fixing this problem couldn't be simpler. Once you enter the correct DNS entries in TCP/IP settings at the DC, populate the zone with SRV records by stopping and starting the Netlogon service. (If you've installed the Support Tools, you can run Netdiag /fix.) Now change the DHCP scope option to point clients at the new DC for DNS, then chase down any statically mapped servers and desktops and correct their DNS entries. Read the rest of the column for suggestions about resolving Internet names.
+</li>
+<li>  
+  
+  <h2>Improper DNS Suffix Handling</h2>
+  Users treat additional keystrokes as if they were penalties visited upon them by uncaring IT bureaucrats. Imagine what would happen if you asked your users to type Fully Qualified Domain Names (FQDNs) rather than simple flat names to connect to internal servers. Quelle catastrophe, as we say in southern New Mexico. Users are willing to type www.ebay.com to buy a used wristwatch, but they don't want to type \\w2k3s102.west.school.edu\ freshman_zclass to map a drive.
+  
+  DNS servers, however, stubbornly insist that every query specify a target domain. How else could they select the proper zone file? Simplicity vs. utility: It's a classic conundrum. The DNS resolver in Windows strikes a compromise. It accepts the flat name from the user then appends a suffix to form a FQDN it can send to a DNS server. The resolver obtains this DNS suffix from one of several places.
+  
+  AD domain name. The domain to which the desktop or server belongs has a DNS name as well as a flat name. You can see this suffix in the Properties of the local system (Figure 1). The TCP/IP Settings window calls this the Primary Suffix. If a query using the primary suffix fails, and the Append Parent Suffixes option is checked, the resolver strips the leftmost element from the primary suffix and tries again. For example, the resolver first appends west.school.edu then school.edu.
+  Alt text here
+  Figure 1. Advanced DNS properties for a network interface.
+  
+  Interface suffix. The TCP/IP settings for each network interface can have a unique DNS suffix, populated either statically or with DHCP. The user interface calls this the Connection-specific Suffix. It's best to leave this field empty in deference to the Primary Suffix. If you do give it a value, the resolver first tries the Primary Suffix, then the Connection-specific Suffix, then the parent suffixes of the Primary Suffix.
+  
+  Search table. The TCP/IP settings for all network interfaces share an optional set of DNS suffixes that the Registry calls a SearchList. If you elect to use the entries in a search list, the resolver ignores the primary suffix, its parents, and the connection-specific suffix.
+  
+  In the default suffix search configuration, a client in the west.school. edu domain won't find a host in the east.school.edu domain. If you want a flat name to resolve to the host's actual FQDN regardless of the host's domain, select the Append These DNS Suffixes option and list each domain in the order you want them tested. Don't forget to include the FQDN of the local domain as the first option on the list.
+</li>
+<li>  
+<h2>Improperly Configured Forwarding</h2>
+  Ordinarily, when a client confronts its DNS server with a request for a resource record in an outside domain, the DNS server searches for a name server in the target domain and submits the query to that server. This standard query resolution has a couple of problems. First, the internal server can get so preoccupied chasing down recursive queries for public hosts that it runs out of resources to handle queries for its own zones. Worse still, the internal server must reach through the firewall and connect to a variety of DNS servers, some of which could have traps that play malicious games with DNS requests.
+  
+  An internal root server doesn't need to waste energy or cause security problems by chasing referrals. Like a manager who doesn't want to get dirty hands, it can let some other DNS server do the grunt work. This process is called forwarding. The server that gets the job of doing the recursive queries and delivering the results is called a forwarder.
+  
+  If you have a business relationship with an ISP, you might get an agreement with them to use their DNS servers as forwarders. This agreement would allow your DNS server to send recursive queries to the ISP's name servers. Otherwise, you can put a caching-only server in your perimeter network to use as a forwarder. If you have a public-facing DNS server in your DMZ that acts as the authoritative server for your public DNS domain, don't use it for a forwarder. Check out Error #7 to see why.
+  
+  If you have a multi-tiered private DNS namespace supporting AD, configure the DNS servers in the child domains to use the internal root DNS servers as forwarders. This allows servers in the child domains to locate SRV and CNAME resource records in the root domain. Without these records, they can't replicate. Also, the root zone holds Global Catalog records for the entire forest. Exchange uses these records to find Global Catalog servers to use for message routing and group membership expansion. Outlook can be configured to find a local Global Catalog server from which to obtain the Global Address List.
+  
+  Don't forget to enable forwarding at each child DNS server. Do this even if you integrate the zone into AD. DNS servers store forwarding parameters in the local Registry, not in AD.
+</li>
+<li>  
+<h2>Improper Zone Transfer Configuration</h2>
+  In a standard text-based DNS zone, only the primary master DNS server has full Read/Write access to the zone file. Secondary DNS servers hold read-only replicas of the zone file. A resource record called Start of Authority (SOA) identifies the primary master server. Figure 2 shows the SOA properties.
+  Alt text here
+  Figure 2. The DNS zone properties showing the Start of Authority tab.
+  
+  Each change to the zone increments a serial number in the SOA record. Two zones in sync have matching SOA serial numbers. The primary master DNS server retains each zone change in a separate log file to use for iterative transfers. In iterative transfers, a secondary DNS server only pulls changes since the last zone transfer. The secondary servers keep track of zone changes using the SOA serial number.
+  
+  It's not uncommon for DNS administrators with BIND experience to make changes directly to a zone file. This can cause zone transfer issues with Windows DNS because not all updates reside in the main zone file. It's usually a good idea to stick with the graphical interface or use a command-line tool such as Dnscmd to make changes to a zone.
+  
+  Windows DNS servers use TCP rather than UDP for a zone transfers, so if you have an intervening firewall, be sure it allows TCP connections over port 53. Also, Windows DNS servers don't use Port 53 as the source port for zone transfers. So when configuring a firewall, expect packets in the zone transfer to come from any port above 1023.
+  
+  Don't allow unrestricted zone transfers. Configure the zone to allow transfers only to servers whose name appears in the Name Server list, as shown in Figure 3. The Name Server list doesn't get populated automatically. Manually add the FQDN and IP address of each secondary server. By placing a secondary server on the Name Server list, you also enable the primary master to send notifications of changes to the secondary server. It's worth the trouble. Disable zone transfers completely at secondary servers unless you want another secondary to pull the zone from it.
+  Figure 3. DNS Zone properties, showing the Name Server list with authorized secondary DNS servers.
+  
+  Before you make the switch to using AD-integrated zones, remove secondary zones from any DCs. If you forget to do this, you put the DC in the awkward position of getting a replica via standard zone transfers and a copy in AD. Remove the secondary zone then stop and restart DNS to see the AD-integrated zone.
+  
+  Test zone transfers using a tool called dig that comes with the BIND implementation from the Internet Systems Consortium (ISC). The most current version of BIND (and dig) is 9.2.3. Get the Win32 binaries from www.isc.org.
+  
+  Using dig, you can initiate full or incremental zone transfers and see the results. For example, to test an incremental transfer, first query for the SOA record at the primary master to see the current serial number. Then request an iterative transfer (IXFR) specifying an earlier SOA serial number. For example, if the SOA serial number is 88, the dig syntax to do an iterative transfer of the last zone change would be similar to the code shown in Listing 1.
+  
+  Listing 1. The dig syntax to transfer the last name change iteratively.
+  
+  dig @w2k3-dc1.school.edu school.edu ifxr=87
+  ; <>> DiG 9.2.3 <>> @192.168.0.250 school.edu ixfr=89
+  ;; global options: printcmd
+  www.school.edu. 3600 IN CNAME webserver2.school.edu.
+  school.edu. 3600 IN SOA w2k3-dc1.school.edu. hostmaster.school.edu. 90 900 600 86400 3600
+  
+  This listing shows the SOA and a CNAME record called www.school.com that points at a server named webserver2.school.edu.
+</li>
+<li>  
+<h2>Failure to Verify Dynamic Update of Resource Records</h2>
+  Every modern Windows client periodically registers its A and PTR record with the Start of Authority (SOA) server for the forward and reverse lookup zones, respectively. The clients send their record updates to the SOA servers because, in standard BIND-style DNS, only the SOA has a Read/Write copy of the zone file. In AD-integrated zones, any DC running DNS can update a zone record.
+  
+  The DHCPClient service on a Windows computer handles the dynamic updates for each network interface. Don't disable this service on a statically mapped server; you'll prevent the server from updating its DNS records if you (or a colleague, after you're long gone) change the server name or its IP address.
+  
+  DCs use the Netlogon service to register their SRV records along with the CNAME records that contain each DC's Globally Unique Identifier (GUID.) These CNAME records are vital for replication. To assure accurate entries, the Netlogon service updates DNS hourly using the content of a file called Netlogon.dns, located in %windir%\system32\config.
+  
+  The SRV and CNAME records have a format that determines the record's location in the DNS hierarchy within the zone. This hierarchy is important because domain members query for SRV records at specific locations. If these lookups fail, the machine gives up and uses local logon credentials.
+  
+  Invalid or missing SRV records can also cause problems for Exchange 2000 and Exchange Server 2003. Modern Exchange relies on DCs to store information about the Exchange organization, and uses the Global Catalog extensively to support messaging routing and to help down-level Outlook clients expand the membership distribution lists. By the same token, newer Outlook clients can be configured to use local Global Catalog servers to obtain address lists, so they rely on DNS as well.
+  
+  A fast way to check for proper SRV record registration is to use the Netdiag utility that comes in Support Tools. Netdiag performs a suite of checks, but here's the syntax to perform just the DNS test with verbose output saved to a Netdiag.log file:
+  
+  netdiag /v /l /test:dns
+  
+  This test walks through every entry in the Netlogon.dns file and verifies that the server has all the proper DNS entries. If you have multiple DCs, you'll get a minor error because the DNS query results in all DCs, but the overall result will come up as a PASS if all the results match.
+  
+  If you get a FAIL on the Netdiag test, use the log file to determine the problem record. You can use Netdiag /fix to apply the contents of the Net-logon.dns file to DNS again. If this resolves the problem and it doesn't reoccur, then all's well. If the problem happens again, you'll have to do more digging.
+  
+  One particularly aggravating source of SRV record problems isn't a lack of records but too many records. If you have a DC with multiple interfaces, the default action of DHCPClient is to register each of the interfaces. If one of the interfaces connects to a private network, such as a dedicated backup network, then clients will fail when they get that IP address, forcing them to go back to DNS to get another SRV record and slowing down the logon process. This can also happen if you have a management card in the server that presents its network or modem interface as a standard network connection which DHCPClient insists on registering.
+</li>
+<li>  
+<h2>Failure to Properly Delegate Child Zones</h2>
+  All DCs in a forest share a common copy of the Configuration and Schema naming contexts, so DCs need to find replication partners regardless of their domain. AD identifies domains and DCs in DNS using CNAME records that correlate a server's GUID and its FQDN. Figure 4 shows the list of CNAME records for the School.edu forest.
+  DNS Management Console
+  Figure 4. The DNS management console showing CNAME records for DCs in an AD forest. (Click image to view larger version.)
+  
+  If a CNAME record references a server in a child domain, the root DNS server needs to go to a DNS server in the child domain to retrieve a copy of the server's A record. It gets the name of this DNS server by way of delegation.
+  
+  In delegation, the parent zone contains NS records that specify the names of DNS servers in the child domains along with A (glue) records that contain their IP addresses. Win2K and Windows 2003 use a New Delegation Wizard to create these records. The wizard walks you through selecting the child domain name and identifying name servers in the child domain.
+  
+  If someone takes down a child DNS server for maintenance, or decommissions it entirely, without notifying the DNS administrator in the parent domain, the delegation records in the parent zone become invalid. This is called lame delegation. You can also get lame delegations by blocking zone transfers to a secondary server if the secondary server has an NS record in the parent zone. This sometimes happens during an overzealous security sweep.
+  
+  In an AD forest, lame delegations can cause replication failures as the root DNS servers grope for the IP addresses of the DCs in the child domains. You'll get Event Log entries complaining about RPC (Remote Procedure Call) connection errors and the inability of the Knowledge Consistency Checker to get a complete spanning tree topology. Lame delegations can also cause connection failures when desktops in one domain try to connect to servers in other domains, although this might not be obvious right away if you use WINS.
+  
+  If you deploy Windows 2003 DNS servers, you can avoid lame delegations by using stub zones. This feature creates a small zone file on the parent DNS server populated with copies of the SOA, NS, and A records from the child zone. The parent DNS server periodically refreshes the stub zone contents, drastically reducing the chance of having a lame delegation.
+  
+  My favorite tool for diagnosing delegation problems is the DNSLint utility from Microsoft. You can download DNSLint from download.microsoft.com/
+  download/win2000srv/Utility/Q321045/NT5XP/EN-US/dnslint.exe.
+  
+  DNSLint is a command-line utility that does two sets of tests: one to determine if your DNS configuration supports a specified AD domain, and one to determine if your DNS configuration meets standard practices for a zone. For example, DNSLint determines the name servers for a zone then checks that each server responds to a request at UDP Port 53 and that each server has matching, valid SOA records and NS records. It also checks for valid MX (Mail eXchange) records that point to e-mail servers in the target DNS domain.
+</li>
+<li>  
+<h2>Failure to Secure Public- Facing DNS Servers</h2>
+  For security, you want all internal servers to rely solely on forwarders to resolve Internet names. Don't let your internal servers roam the Internet looking for name servers. Select the "Do not use recursion for this domain" option when configuring forwarding. Figure 5 shows an example. This essentially makes your internal DNS server a slave of its forwarders; so specify two or more forwarders and try to use servers in different subnets, if possible. You don't want a network failure at your ISP to keep your clients from resolving DNS names.
+  Alt text here
+  Figure 5. DNS Server properties showing the option to avoid using recursion when forwarding.
+  
+  Now let's turn attention to the servers you'll use as forwarders. It's important to keep the two primary DNS functions—caching and zone table lookups—on separate servers. If you allow your primary public DNS server to accept recursive queries and cache the results, you open yourself up for cache pollution. That's why you want to install a caching-only server in your DMZ to act as a forwarder, rather than using your public DNS server as a forwarder.
+  
+  For example, let's say your DNS server gets a recursive query for www.deviousdomain.com. It finds the name server for deviousdomain.com and asks for the www host record. In return, it gets the host record but it also gets a flock of name server (NS) records for domains such as Microsoft.com, Yahoo.com and so on, along with glue records that have IP addresses pointing at nefarious Web sites. Check the option to Disable Recursion for all public-facing authoritative DNS servers.
+  
+  You should also enable cache pollution filtering in the DNS server Advanced properties. Do this for any server that accepts recursive queries, internally or externally. Cache pollution filtering tells DNS not to cache NS and glue records for domains outside the authoritative zone of the name server that sent them and not to cache glue records for the responding server's authoritative zone, just in case a bogus name server impersonates the actual server.
+  
+  Block all traffic to public-facing DNS servers except for UDP port 53. On the private side of the DMZ, you'll need to open TCP Port 53 and all ports above 1023 to permit zone transfers between multiple DNS servers in the perimeter network. You can protect this traffic using IPSec if your firewall accepts IPSec traffic.
+  
+  For public-facing servers, take a look at the advice in RFC 2870, Root Name Server Operational Requirements. Some of the restrictions apply only to the gTLD server operators, but the suggestions and requirements for maintaining a secure, safe DNS platform are worth your consideration. Also, take a trip to www.dnsreport. com to get a great quick-and-dirty analysis of whether your public-facing DNS servers exhibit common DNS problems.
+</li>
+<li>  
+<h2>Failure To Properly Secure Resource Records</h2>
+  If you use a BIND-style primary master to store a zone, you shouldn't allow dynamic updates. Windows can't secure updates to a text-based zone file. Any machine can assert itself as an existing host and overwrite the A record with a new IP address. This essentially allows a machine to hijack the DNS records of another machine.
+  
+  If you want to use dynamic updates for a zone, integrate the zone into AD and permit secure updates only. This requires a client to use Kerberos to validate its identity, then initiate a secure transaction to obtain a signing key that it can use to digitally sign the update request. RFC 2930, "Secret Key Establishment for DNS," documents this method, which can only be used by modern Windows clients (Win2K, Windows XP and Windows 2003).
+  
+  Other DNS servers support secure dynamic updates, but not using this method. Examples include the current version of BIND, Lucent VitalQIP and Incognito's DNS Commander. These servers use a form of DNS security that requires a shared secret key. Windows clients don't support shared secret keys. For more information about DNS Security (DNSSEC), read the RFCs listed at www.dnssec.org/rfc.php.
+</li>
+<li>  
+<h2>Incorrect, Outdated or Unreachable DNS Servers</h2>
+  Anyone can get in a hurry and type an incorrect IP address in a host record or misspell a server name in a CNAME record. DNS doesn't validate your entries—it assumes you're a consummate IT professional and accepts your input unquestioningly. For this reason, it's a good idea to test every new entry you make into a zone. If you do this as a habit, the test becomes a reflex.
+  
+  The best test of a new A or CNAME record is usually a quick ping right at the console of the DNS server or your workstation. Take a couple of precautions to keep from getting fooled by caching. Both the DNS server and the local DNS resolver cache any records they receive for a period of time determined by a TTL setting in the record. The SOA for the zone determines the default TTL, which is one hour for Windows DNS servers. Clear the local cache using ipconfig /flushdns. For the server, use the Clear Cache option in the server's property menu in the DNS console or use the Dnscmd utility with the syntax dnscmd /clearcache.
+  
+  Typos aren't the only source of misinformation in DNS. You can get interesting problems if you remove a member server from service but forget to remove the corresponding A and PTR entries from DNS. Or you might remember to remove the A record but forget to look for any CNAME records that reference the A record. This can be difficult to troubleshoot if you reference multiple servers with the same host name. Windows DNS uses round robin load sharing; so if you take a server down for maintenance and forget to remove the A record from DNS, not every client gets an invalid A record. Windows DNS also uses round robin for cached entries, so flush the cache if you take a DNS server down for maintenance.
+  
+  You also get invalid DNS entries if you use AD-integrated zones and demote a DC that was also a DNS server. The server still has DNS running, but has no local zones so it starts acting as a caching-only server. Depending on the forwarding configuration and NS records stored in the local Registry, it might even appear to work normally, which is unfortunate. It would be better if it failed completely so you could fix it right away.
+  
+  Clients can also get invalid information if you set up a public-facing DNS server behind a NAT firewall and the server has glue records that reference private IP addresses. A typical NAT firewall doesn't translate the IP address in glue records, so the DNS server passes out referrals to servers that can't be touched from outside the firewall. You should avoid publishing private addresses entirely or get an application layer gateway capable of translating glue records.
+</li>
+<li>  
+<h2>Lack of Fault Tolerance</h2>
+  As systems administrators, we're trained to think about the possibility of server failures and operational flexibilities. You would probably not set up a single DNS server in a large enterprise because your entire computing operation would grind to a halt if you take the server down for maintenance. But would you put the second DNS server on the same rack as the first? Or in the same subnet? Or even in the same server room?
+  
+  Fault tolerance is all about assessing business risks, and if your business relies heavily on DNS, it makes sense to put some thought into maintaining continuity of service. You'll get a big head start by integrating your DNS zones into AD. This allows you to use any DC in the domain as a primary master DNS server, eliminating the single point of failure in standard BIND-style DNS. Also, because each DC represents itself as the SOA server for the zone, its DNS clients do their dynamic updates locally rather than sending them across the WAN to a single primary master.
+  
+  If you do decide to use a standard text-based zone, decide in advance which secondary server you'll promote in the event of a failure of the primary master or a loss of the network connections to the primary master. Scheduling maintenance can be tricky, because you don't know when a client will attempt a dynamic update, but as long as you have secondary servers, the clients won't lose the ability to do read-only queries. However, a zone with a Windows SOA expires after 24 hours, so don't dilly-dally with getting the primary master back on line.
+  
+  If your organization covers a large chunk of planetary geography, you may want to consider putting the _msdcs portion of the root domain into its own zone and putting a secondary of that zone on all your DNS servers. This allows DCs to find the CNAME records of their replication partners without querying across the WAN.
+  
+  If you use AD-integrated zones, a common question arises about where to point the DCs themselves for DNS lookups. For the most part, you can point a DC at itself and specify an alternate DNS server in the same site.
+  
+  There's an exception to this rule. In the forest root domain, don't point the DCs at themselves. The CNAME records in the _msdcs portion of the forest root zone identify the DCs in the forest. You can end up in a Catch-22 situation where a forest root DC can't find the CNAME record for a replication partner and can't get a copy of the CNAME record because it can't replicate. Windows Server 2003 resolves this problem by automatically going to another DNS server if it can't find the CNAME record corresponding to a DC GUID in AD.
+</ol>  
+<h2>Don't Forget the People</h2>
+  All of the problems and errors listed in this article can be avoided by planning and testing. There's a final problem, though, that transcends technology. It's a people issue.
+  
+  In many organizations, the need to support AD in DNS puts the Windows folks in the same meeting room with the Unix folks who control the existing DNS servers. Sometimes those meetings achieve spectacular results. The participants use their long history of mutual trust to share insights into their own needs and requirements and, in doing so, they create a design that incorporates all the best features of Windows DNS and BIND or VitalQIP or DNS Commander, or whatever flavor of DNS is running on the Unix servers.
+  
+  Other times, the results of the meetings aren't quite so collegial.
+  
+  As you work for a compromise that allows you to mix different versions of DNS in the same organization, keep these words of Doug Floyd from Spokane's The Spokesman-Review in mind: "You don't get harmony if everyone sings the same note."
+</p>  
+<footer>  
+  <h1>About the Author</h1>
+<p>  
+Contributing Editor Bill Boswell, MCSE, is the principal of Bill Boswell Consulting, Inc. He's the author of Inside Windows Server 2003 and Learning Exchange Server 2003 both from Addison Wesley. Bill is also Redmond magazine's "Windows Insider" columnist and a speaker at MCP Magazine's TechMentor Conferences.
+</p>
+</footer>
+</body>
+</html>
